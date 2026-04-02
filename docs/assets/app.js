@@ -2,7 +2,18 @@
  * DET 复习站：首页选题 → 看图 / 阅读说话 / 口语样本（key=c）独立界面
  */
 
-const EXAM_SECONDS = 90;
+/** 看图说话、阅读说话：90 秒 */
+const EXAM_SECONDS_IMAGE_READ = 90;
+/** 口语样本（key=c）：3 分钟 */
+const EXAM_SECONDS_SAMPLE = 180;
+
+/** @param {Record<string, unknown>} q */
+function examSecondsForQuestion(q) {
+  return questionKey(q) === "c" ? EXAM_SECONDS_SAMPLE : EXAM_SECONDS_IMAGE_READ;
+}
+
+/** 当前作答页使用的总秒数（在 openExam 里赋值） */
+let examDurationSec = EXAM_SECONDS_IMAGE_READ;
 
 /**
  * docs/ 站点根（末尾带 /）。用于 fetch 与图片地址，避免 GitHub Pages 项目站无尾斜杠时
@@ -27,6 +38,12 @@ let mode = null;
 let current = null;
 
 const $ = (id) => document.getElementById(id);
+
+function onClick(id, handler) {
+  const el = $(id);
+  if (el) el.addEventListener("click", handler);
+  else console.warn(`[DET] 缺少页面元素 #${id}，请同步部署最新 docs/index.html`);
+}
 
 function questionKey(q) {
   const k = String(q.key ?? "a").toLowerCase();
@@ -189,7 +206,9 @@ function showHome() {
   $("view-home").classList.remove("hidden");
   $("view-list").classList.add("hidden");
   $("view-exam").classList.add("hidden");
-  setHeaderDesc("先选择题型进入对应复习界面 · 模拟 90 秒 · 英文转写（不保存）");
+  setHeaderDesc(
+    "先选择题型进入对应复习界面 · 看图/阅读 90 秒 · 口语样本 3 分钟 · 英文转写（不保存）"
+  );
 }
 
 /**
@@ -206,9 +225,9 @@ function enterMode(kind) {
   $("list-title").textContent = titles[kind] ?? "题库";
 
   const descs = {
-    a: "当前：看图说话 · 返回选题可切换其它题型",
-    e: "当前：阅读说话（无配图）· 返回选题可切换其它题型",
-    c: "当前：口语样本（无配图）· 返回选题可切换其它题型",
+    a: "当前：看图说话（模拟 90 秒）· 返回选题可切换其它题型",
+    e: "当前：阅读说话（无配图，模拟 90 秒）· 返回选题可切换其它题型",
+    c: "当前：口语样本（无配图，模拟 3 分钟）· 返回选题可切换其它题型",
   };
   setHeaderDesc(descs[kind] ?? "");
 
@@ -253,11 +272,20 @@ function setTextExamUI(textMode) {
 
 function openExam(q) {
   current = q;
+  examDurationSec = examSecondsForQuestion(q);
   const textMode = isTextExamKind(q);
   $("view-list").classList.add("hidden");
   $("view-exam").classList.remove("hidden");
 
   setTextExamUI(textMode);
+
+  const btnStart = $("btn-start");
+  if (btnStart) {
+    btnStart.textContent =
+      examDurationSec === EXAM_SECONDS_SAMPLE
+        ? "开始作答（3 分钟）"
+        : "开始作答（90 秒）";
+  }
 
   $("exam-id").textContent = String(q.id);
   const d = String(q.difficulty ?? "?");
@@ -309,13 +337,13 @@ function resetTranscript(textMode) {
 
 function resetTimerDisplay() {
   const t = $("timer");
-  t.textContent = formatTime(EXAM_SECONDS);
+  t.textContent = formatTime(examDurationSec);
   t.classList.remove("warning", "danger");
 }
 
 let recognition = null;
 let tickId = null;
-let timeLeft = EXAM_SECONDS;
+let timeLeft = EXAM_SECONDS_IMAGE_READ;
 let examActive = false;
 let finalTranscript = "";
 
@@ -350,11 +378,11 @@ function startExam() {
   tr.classList.remove("placeholder");
   tr.textContent = "";
 
-  timeLeft = EXAM_SECONDS;
+  timeLeft = examDurationSec;
   examActive = true;
   $("btn-start").classList.add("hidden");
   $("btn-stop").classList.remove("hidden");
-  $("mic-hint").textContent = "识别中…若中途断开会自动续听，直至 90 秒结束。";
+  $("mic-hint").textContent = `识别中…若中途断开会自动续听，直至 ${formatTime(examDurationSec)} 计时结束。`;
 
   const rec = new SpeechRecognition();
   recognition = rec;
@@ -495,29 +523,38 @@ function randomQuestion() {
 }
 
 function init() {
-  $("btn-back").addEventListener("click", showList);
-  $("btn-back-home").addEventListener("click", showHome);
-  $("btn-mode-image").addEventListener("click", () => enterMode("a"));
-  $("btn-mode-read").addEventListener("click", () => enterMode("e"));
-  $("btn-mode-sample").addEventListener("click", () => enterMode("c"));
-  $("btn-start").addEventListener("click", startExam);
-  $("btn-stop").addEventListener("click", finishExam);
-  $("btn-random").addEventListener("click", randomQuestion);
-
+  // 必须先发起题库请求：若下面绑定事件时抛错（例如线上 HTML 缺某个 id），旧逻辑会导致永远不 fetch，Network 里看不到 bank.json
   loadBank()
     .then((data) => {
       bank = data;
-      $("btn-mode-image").disabled = false;
-      $("btn-mode-read").disabled = false;
-      $("btn-mode-sample").disabled = false;
+      const enable = (id) => {
+        const el = $(id);
+        if (el) el.disabled = false;
+      };
+      enable("btn-mode-image");
+      enable("btn-mode-read");
+      enable("btn-mode-sample");
     })
     .catch((e) => {
-      $("view-home").classList.add("hidden");
-      const extra =
-        "生成题库：在项目根目录运行 python3 scripts/build_bank.py，将 docs/data/bank.json 与网站一并提交推送。";
-      $("load-err").textContent = `加载失败: ${e.message || e} ${extra}`;
-      $("load-err").classList.remove("hidden");
+      const home = $("view-home");
+      if (home) home.classList.add("hidden");
+      const errEl = $("load-err");
+      if (errEl) {
+        const extra =
+          "生成题库：在项目根目录运行 python3 scripts/build_bank.py，将 docs/data/bank.json 与网站一并提交推送。若 Network 里完全没有请求，请打开控制台（Console）看是否有红色报错，并确认 assets/app.js 已 200 加载。";
+        errEl.textContent = `加载失败: ${e.message || e} ${extra}`;
+        errEl.classList.remove("hidden");
+      }
     });
+
+  onClick("btn-back", showList);
+  onClick("btn-back-home", showHome);
+  onClick("btn-mode-image", () => enterMode("a"));
+  onClick("btn-mode-read", () => enterMode("e"));
+  onClick("btn-mode-sample", () => enterMode("c"));
+  onClick("btn-start", startExam);
+  onClick("btn-stop", finishExam);
+  onClick("btn-random", randomQuestion);
 }
 
 init();
