@@ -15,17 +15,37 @@
   <body>
     <header class="site-header">
       <h1>DET 口语复习</h1>
-      <p>
-        看图说话 / 阅读说话 · 按难度筛选 · 模拟 90 秒 · 英文转写（不保存）· 展开参考翻译、范文与模板
+      <p id="header-desc">
+        先选择题型进入对应复习界面 · 模拟 90 秒 · 英文转写（不保存）
       </p>
     </header>
 
     <main>
       <div id="load-err" class="hint error hidden"></div>
 
-      <section id="view-list" class="view-list">
+      <section id="view-home" class="view-home" aria-label="选择题型">
+        <h2 class="home-title">今天复习哪一类？</h2>
+        <p class="home-sub">两种题型的列表与作答页相互独立；阅读说话无配图。</p>
+        <div class="mode-grid">
+          <button type="button" class="mode-card mode-card-a" id="btn-mode-image" disabled>
+            <span class="mode-card-icon" aria-hidden="true">🖼</span>
+            <span class="mode-card-title">看图说话</span>
+            <span class="mode-card-desc">浏览题目配图 · 描述图片 · 参考范文</span>
+          </button>
+          <button type="button" class="mode-card mode-card-e" id="btn-mode-read" disabled>
+            <span class="mode-card-icon" aria-hidden="true">📖</span>
+            <span class="mode-card-title">阅读说话</span>
+            <span class="mode-card-desc">英文题干 · 参考翻译 · 范文与答题模板</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="view-list" class="view-list hidden">
+        <div class="list-heading">
+          <button type="button" class="btn btn-ghost btn-back-home" id="btn-back-home">← 返回选题</button>
+          <h2 class="list-title" id="list-title">看图说话</h2>
+        </div>
         <div class="toolbar">
-          <div class="kind-tabs" id="kind-tabs" role="tablist" aria-label="题型"></div>
           <div class="diff-tabs" id="diff-tabs" role="tablist" aria-label="难度筛选"></div>
           <div class="actions">
             <button type="button" class="btn btn-primary" id="btn-random">随机一题</button>

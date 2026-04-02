@@ -1,5 +1,5 @@
 /**
- * DET 复习站：看图说话（key=a）与阅读说话（key=e）
+ * DET 复习站：首页选题 → 看图说话 / 阅读说话 独立界面
  */
 
 const EXAM_SECONDS = 90;
@@ -7,8 +7,10 @@ const EXAM_SECONDS = 90;
 /** @type {Array<Record<string, unknown>>} */
 let bank = [];
 let filterDiff = "all"; // 'all' | '1' | '2' | '3'
-/** @type {'all' | 'a' | 'e'} */
-let filterKind = "all";
+/** @type {'a' | 'e' | null} 仅在进入某一题型后非 null */
+let mode = null;
+/** @type {Record<string, unknown> | null} */
+let current = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,13 +41,13 @@ function badgeClass(d) {
   return m[String(d)] || "badge-d2";
 }
 
-function baseByKind() {
-  if (filterKind === "all") return bank;
-  return bank.filter((q) => questionKey(q) === filterKind);
+function baseForMode() {
+  if (mode == null) return [];
+  return bank.filter((q) => questionKey(q) === mode);
 }
 
 function filteredList() {
-  let list = baseByKind();
+  let list = baseForMode();
   if (filterDiff !== "all") {
     list = list.filter((q) => String(q.difficulty) === filterDiff);
   }
@@ -68,26 +70,24 @@ function renderList() {
     return;
   }
   empty.classList.add("hidden");
+
+  const readMode = mode === "e";
+
   for (const q of list) {
     const id = q.id;
     const diff = String(q.difficulty ?? "?");
-    const read = isReadKind(q);
     const card = document.createElement("article");
-    card.className = read ? "card card-text" : "card";
+    card.className = readMode ? "card card-text" : "card";
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
-    const kindLabel = read ? "阅读" : "看图";
-    const kindClass = read ? "badge-e" : "badge-a";
-
-    if (read) {
+    if (readMode) {
       const raw = String(q.title || "").replace(/\r\n/g, "\n");
       const oneLine = raw.split("\n").join(" ").replace(/\s+/g, " ").trim();
       const preview = oneLine.slice(0, 160);
       card.innerHTML = `
         <div class="card-preview">${escapeHtml(preview)}${oneLine.length > 160 ? "…" : ""}</div>
         <div class="meta">
-          <span class="badge badge-kind ${kindClass}">${kindLabel}</span>
           <span class="badge ${badgeClass(diff)}">难度 ${escapeHtml(diff)}</span>
           <strong>#${escapeHtml(String(id))}</strong>
         </div>
@@ -97,7 +97,6 @@ function renderList() {
       card.innerHTML = `
         <img src="${escapeAttr(img)}" alt="" loading="lazy" />
         <div class="meta">
-          <span class="badge badge-kind ${kindClass}">${kindLabel}</span>
           <span class="badge ${badgeClass(diff)}">难度 ${escapeHtml(diff)}</span>
           <strong>#${escapeHtml(String(id))}</strong>
         </div>
@@ -128,34 +127,8 @@ function escapeAttr(s) {
     .replace(/</g, "&lt;");
 }
 
-function renderKindTabs() {
-  const tabs = $("kind-tabs");
-  tabs.innerHTML = "";
-
-  function addTab(value, label) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = label;
-    b.dataset.kind = value;
-    if (value === filterKind) b.classList.add("active");
-    b.addEventListener("click", () => {
-      filterKind = /** @type {'all' | 'a' | 'e'} */ (value);
-      filterDiff = "all";
-      tabs.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      renderDiffTabs();
-      renderList();
-    });
-    tabs.appendChild(b);
-  }
-
-  addTab("all", "全部题型");
-  addTab("a", "看图说话");
-  addTab("e", "阅读说话");
-}
-
 function renderDiffTabs() {
-  const set = new Set(baseByKind().map((q) => String(q.difficulty ?? "")));
+  const set = new Set(baseForMode().map((q) => String(q.difficulty ?? "")));
   const levels = [...set].filter(Boolean).sort();
   const tabs = $("diff-tabs");
   tabs.innerHTML = "";
@@ -181,6 +154,42 @@ function renderDiffTabs() {
   }
 }
 
+function setHeaderDesc(text) {
+  const el = $("header-desc");
+  if (el) el.textContent = text;
+}
+
+function showHome() {
+  stopExamInternal();
+  mode = null;
+  $("view-home").classList.remove("hidden");
+  $("view-list").classList.add("hidden");
+  $("view-exam").classList.add("hidden");
+  setHeaderDesc("先选择题型进入对应复习界面 · 模拟 90 秒 · 英文转写（不保存）");
+}
+
+/**
+ * @param {'a' | 'e'} kind
+ */
+function enterMode(kind) {
+  mode = kind;
+  filterDiff = "all";
+  $("view-home").classList.add("hidden");
+  $("view-list").classList.remove("hidden");
+  $("view-exam").classList.add("hidden");
+
+  const isRead = kind === "e";
+  $("list-title").textContent = isRead ? "阅读说话" : "看图说话";
+  setHeaderDesc(
+    isRead
+      ? "当前：阅读说话（无配图）· 返回选题可切换看图说话"
+      : "当前：看图说话 · 返回选题可切换阅读说话"
+  );
+
+  renderDiffTabs();
+  renderList();
+}
+
 function showList() {
   stopExamInternal();
   $("view-list").classList.remove("hidden");
@@ -192,7 +201,6 @@ function setReadExamUI(read) {
   const promptWrap = $("exam-prompt-wrap");
   const translateWrap = $("translate-wrap");
   const templateWrap = $("template-wrap");
-  const th = $("transcript-heading");
   const tr = $("transcript");
 
   if (read) {
@@ -200,13 +208,11 @@ function setReadExamUI(read) {
     promptWrap.classList.remove("hidden");
     translateWrap.classList.remove("hidden");
     templateWrap.classList.remove("hidden");
-    th.textContent = "实时英文转写";
   } else {
     imgWrap.classList.remove("hidden");
     promptWrap.classList.add("hidden");
     translateWrap.classList.add("hidden");
     templateWrap.classList.add("hidden");
-    th.textContent = "实时英文转写";
   }
 
   if (read) {
@@ -406,6 +412,9 @@ function randomQuestion() {
 
 function init() {
   $("btn-back").addEventListener("click", showList);
+  $("btn-back-home").addEventListener("click", showHome);
+  $("btn-mode-image").addEventListener("click", () => enterMode("a"));
+  $("btn-mode-read").addEventListener("click", () => enterMode("e"));
   $("btn-start").addEventListener("click", startExam);
   $("btn-stop").addEventListener("click", finishExam);
   $("btn-random").addEventListener("click", randomQuestion);
@@ -413,11 +422,11 @@ function init() {
   loadBank()
     .then((data) => {
       bank = data;
-      renderKindTabs();
-      renderDiffTabs();
-      renderList();
+      $("btn-mode-image").disabled = false;
+      $("btn-mode-read").disabled = false;
     })
     .catch((e) => {
+      $("view-home").classList.add("hidden");
       $("load-err").textContent = `加载失败: ${e.message}。请先在项目根目录运行 python scripts/build_bank.py 生成 docs/data/bank.json 并推送。`;
       $("load-err").classList.remove("hidden");
     });
