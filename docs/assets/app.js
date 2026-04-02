@@ -449,7 +449,40 @@ function finishExam() {
   $("mic-hint").textContent = "本轮已结束。可再次点击「开始作答」重试。";
 }
 
-/** 多种方式拼 bank.json URL，避免个别托管环境下 import.meta / 当前页路径不一致导致 Failed to fetch */
+/** data/ 目录的候选 URL（末尾一般为 data/），优先与当前页 <base> 一致 */
+function candidateDataDirHrefs() {
+  const seen = new Set();
+  const out = [];
+  /** @param {string} href */
+  const add = (href) => {
+    if (href && !seen.has(href)) {
+      seen.add(href);
+      out.push(href);
+    }
+  };
+  try {
+    if (typeof document !== "undefined" && document.baseURI) {
+      add(new URL("data/", document.baseURI).href);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    add(new URL("data/", DOCS_ROOT).href);
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    if (typeof location !== "undefined" && location.href) {
+      add(new URL("data/", location.href).href);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return out;
+}
+
+/** 多种方式拼 bank.json URL（单文件回退） */
 function candidateBankJsonUrls() {
   const seen = new Set();
   /** @param {string} href */
@@ -457,14 +490,14 @@ function candidateBankJsonUrls() {
     if (href && !seen.has(href)) seen.add(href);
   };
   try {
-    add(new URL("data/bank.json", DOCS_ROOT).href);
+    if (typeof document !== "undefined" && document.baseURI) {
+      add(new URL("data/bank.json", document.baseURI).href);
+    }
   } catch (_) {
     /* ignore */
   }
   try {
-    if (typeof document !== "undefined" && document.baseURI) {
-      add(new URL("data/bank.json", document.baseURI).href);
-    }
+    add(new URL("data/bank.json", DOCS_ROOT).href);
   } catch (_) {
     /* ignore */
   }
@@ -478,13 +511,30 @@ function candidateBankJsonUrls() {
   return [...seen];
 }
 
-async function loadBank() {
-  if (typeof location !== "undefined" && location.protocol === "file:") {
-    throw new Error(
-      "当前为 file:// 打开，浏览器通常会拦截题库请求。请在终端进入 docs 目录执行: python3 -m http.server 8080，然后用浏览器打开 http://localhost:8080/"
-    );
+/**
+ * 并行拉取 bank_a / bank_e / bank_c，比单文件 bank.json 更易完成下载，减少 Network 里长时间 pending。
+ * @returns {Promise<any[] | null>} 成功返回合并数组；任一分卷不存在则返回 null 以回退单文件
+ */
+async function tryLoadSplitBanks() {
+  const names = ["bank_a.json", "bank_e.json", "bank_c.json"];
+  for (const baseHref of candidateDataDirHrefs()) {
+    try {
+      const base = new URL(baseHref);
+      const responses = await Promise.all(
+        names.map((n) => fetch(new URL(n, base), { cache: "no-store" }))
+      );
+      if (responses.some((r) => !r.ok)) continue;
+      const parts = await Promise.all(responses.map((r) => r.json()));
+      if (!parts.every((p) => Array.isArray(p))) continue;
+      return parts.flat();
+    } catch {
+      continue;
+    }
   }
+  return null;
+}
 
+async function loadBankSingleFile() {
   const urls = candidateBankJsonUrls();
   if (urls.length === 0) {
     throw new Error("无法解析 data/bank.json 地址");
@@ -508,11 +558,33 @@ async function loadBank() {
   }
 
   const hint =
-    "若已部署 GitHub Pages，请确认已提交并推送 docs/data/bank.json，且 Settings → Pages 源为含该文件的目录。";
+    "若已部署 GitHub Pages，请确认已提交并推送 docs/data 下 json，且 Settings → Pages 源为含该目录的分支。";
   if (lastErr && /Failed to fetch|NetworkError|Load failed/i.test(lastErr.message)) {
     throw new Error(`${lastErr.message}。${hint} 本地预览请勿用双击打开 HTML，请用 http.server。`);
   }
   throw lastErr || new Error(`题库加载失败。${hint}`);
+}
+
+function setBankLoading(visible) {
+  const el = $("bank-loading");
+  if (el) el.classList.toggle("hidden", !visible);
+}
+
+async function loadBank() {
+  if (typeof location !== "undefined" && location.protocol === "file:") {
+    throw new Error(
+      "当前为 file:// 打开，浏览器通常会拦截题库请求。请在终端进入 docs 目录执行: python3 -m http.server 8080，然后用浏览器打开 http://localhost:8080/"
+    );
+  }
+
+  setBankLoading(true);
+  try {
+    const split = await tryLoadSplitBanks();
+    if (split !== null) return split;
+    return await loadBankSingleFile();
+  } finally {
+    setBankLoading(false);
+  }
 }
 
 function randomQuestion() {

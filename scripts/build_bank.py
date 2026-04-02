@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """将 out/、out_e/、out_c/ 下各题 JSON 合并为 docs/data/bank.json。
 
+同时按题型写入 bank_a.json / bank_e.json / bank_c.json，供前端并行拉取，减轻单次大文件
+pending 过久（合并文件仍保留为 bank.json 作回退）。
+
 - out/：看图说话（key=a 等），若存在 out/<id>/image.jpg 则复制到 docs/images/<id>.jpg，
   并写入 image_url 为 images/<id>.jpg（GitHub Pages 只发布 docs/）。
 - out_e/：阅读说话（key=e），无配图；extData 含参考翻译、答题模板等。
@@ -56,9 +59,29 @@ def main() -> None:
             item["image_url"] = f"images/{qid}.jpg"
             copied += 1
 
+    def norm_key(d: dict) -> str:
+        k = str(d.get("key") or "a").lower()
+        if k == "e":
+            return "e"
+        if k == "c":
+            return "c"
+        return "a"
+
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
-    print(f"已写入 {len(items)} 条 → {dest}（本地图 {copied} 张 → {images_dest}）")
+
+    for label, fname in (("a", "bank_a.json"), ("e", "bank_e.json"), ("c", "bank_c.json")):
+        chunk = [x for x in items if norm_key(x) == label]
+        (dest.parent / fname).write_text(json.dumps(chunk, ensure_ascii=False), encoding="utf-8")
+
+    na, ne, nc = (
+        sum(1 for x in items if norm_key(x) == "a"),
+        sum(1 for x in items if norm_key(x) == "e"),
+        sum(1 for x in items if norm_key(x) == "c"),
+    )
+    print(
+        f"已写入 {len(items)} 条 → {dest}（a={na}, e={ne}, c={nc}）· 分卷 bank_a/e/c.json · 本地图 {copied} 张 → {images_dest}"
+    )
 
 
 if __name__ == "__main__":

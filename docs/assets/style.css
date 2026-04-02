@@ -426,6 +426,20 @@ main {
   color: var(--danger);
 }
 
+.bank-loading {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.bank-loading.hidden {
+  display: none;
+}
+
 details.sample {
   margin-top: 1.25rem;
   border: 1px solid var(--border);
