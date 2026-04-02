@@ -1,5 +1,5 @@
 /**
- * DET 复习站：首页选题 → 看图说话 / 阅读说话 独立界面
+ * DET 复习站：首页选题 → 看图 / 阅读说话 / 口语样本（key=c）独立界面
  */
 
 const EXAM_SECONDS = 90;
@@ -21,7 +21,7 @@ function resolveAssetUrl(path) {
 /** @type {Array<Record<string, unknown>>} */
 let bank = [];
 let filterDiff = "all"; // 'all' | '1' | '2' | '3'
-/** @type {'a' | 'e' | null} 仅在进入某一题型后非 null */
+/** @type {'a' | 'e' | 'c' | null} 仅在进入某一题型后非 null */
 let mode = null;
 /** @type {Record<string, unknown> | null} */
 let current = null;
@@ -29,13 +29,23 @@ let current = null;
 const $ = (id) => document.getElementById(id);
 
 function questionKey(q) {
-  const k = q.key;
-  if (k === "e" || k === "E") return "e";
+  const k = String(q.key ?? "a").toLowerCase();
+  if (k === "e") return "e";
+  if (k === "c") return "c";
   return "a";
 }
 
-function isReadKind(q) {
-  return questionKey(q) === "e";
+/** 无配图、展示英文题干与 extData（翻译/模板）的题型：阅读说话、口语样本 */
+function isTextExamKind(q) {
+  const k = questionKey(q);
+  return k === "e" || k === "c";
+}
+
+function examKindLabel(q) {
+  const k = questionKey(q);
+  if (k === "e") return "阅读";
+  if (k === "c") return "口语样本";
+  return "看图";
 }
 
 /** @param {Record<string, unknown>} q */
@@ -85,17 +95,17 @@ function renderList() {
   }
   empty.classList.add("hidden");
 
-  const readMode = mode === "e";
+  const textMode = mode === "e" || mode === "c";
 
   for (const q of list) {
     const id = q.id;
     const diff = String(q.difficulty ?? "?");
     const card = document.createElement("article");
-    card.className = readMode ? "card card-text" : "card";
+    card.className = textMode ? "card card-text" : "card";
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
-    if (readMode) {
+    if (textMode) {
       const raw = String(q.title || "").replace(/\r\n/g, "\n");
       const oneLine = raw.split("\n").join(" ").replace(/\s+/g, " ").trim();
       const preview = oneLine.slice(0, 160);
@@ -183,7 +193,7 @@ function showHome() {
 }
 
 /**
- * @param {'a' | 'e'} kind
+ * @param {'a' | 'e' | 'c'} kind
  */
 function enterMode(kind) {
   mode = kind;
@@ -192,13 +202,15 @@ function enterMode(kind) {
   $("view-list").classList.remove("hidden");
   $("view-exam").classList.add("hidden");
 
-  const isRead = kind === "e";
-  $("list-title").textContent = isRead ? "阅读说话" : "看图说话";
-  setHeaderDesc(
-    isRead
-      ? "当前：阅读说话（无配图）· 返回选题可切换看图说话"
-      : "当前：看图说话 · 返回选题可切换阅读说话"
-  );
+  const titles = { a: "看图说话", e: "阅读说话", c: "口语样本" };
+  $("list-title").textContent = titles[kind] ?? "题库";
+
+  const descs = {
+    a: "当前：看图说话 · 返回选题可切换其它题型",
+    e: "当前：阅读说话（无配图）· 返回选题可切换其它题型",
+    c: "当前：口语样本（无配图）· 返回选题可切换其它题型",
+  };
+  setHeaderDesc(descs[kind] ?? "");
 
   renderDiffTabs();
   renderList();
@@ -210,14 +222,14 @@ function showList() {
   $("view-exam").classList.add("hidden");
 }
 
-function setReadExamUI(read) {
+function setTextExamUI(textMode) {
   const imgWrap = $("exam-image-wrap");
   const promptWrap = $("exam-prompt-wrap");
   const translateWrap = $("translate-wrap");
   const templateWrap = $("template-wrap");
   const tr = $("transcript");
 
-  if (read) {
+  if (textMode) {
     imgWrap.classList.add("hidden");
     promptWrap.classList.remove("hidden");
     translateWrap.classList.remove("hidden");
@@ -229,7 +241,7 @@ function setReadExamUI(read) {
     templateWrap.classList.add("hidden");
   }
 
-  if (read) {
+  if (textMode) {
     tr.textContent =
       "点击「开始作答」后允许麦克风，用英语回答题目；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
   } else {
@@ -241,19 +253,19 @@ function setReadExamUI(read) {
 
 function openExam(q) {
   current = q;
-  const read = isReadKind(q);
+  const textMode = isTextExamKind(q);
   $("view-list").classList.add("hidden");
   $("view-exam").classList.remove("hidden");
 
-  setReadExamUI(read);
+  setTextExamUI(textMode);
 
   $("exam-id").textContent = String(q.id);
   const d = String(q.difficulty ?? "?");
   const badge = $("exam-badge");
-  badge.textContent = `${read ? "阅读" : "看图"} · 难度 ${d}`;
+  badge.textContent = `${examKindLabel(q)} · 难度 ${d}`;
   badge.className = `badge ${badgeClass(d)}`;
 
-  if (read) {
+  if (textMode) {
     const title = String(q.title || "（无题目）");
     $("exam-prompt").textContent = title;
     const ext = parseExtData(q);
@@ -269,7 +281,7 @@ function openExam(q) {
     $("sample-wrap").open = false;
   }
 
-  resetTranscript(read);
+  resetTranscript(textMode);
   resetTimerDisplay();
 
   $("btn-start").classList.remove("hidden");
@@ -282,10 +294,10 @@ function openExam(q) {
   $("mic-hint").textContent = "";
 }
 
-/** @param {boolean} read */
-function resetTranscript(read) {
+/** @param {boolean} textMode */
+function resetTranscript(textMode) {
   const el = $("transcript");
-  if (read) {
+  if (textMode) {
     el.textContent =
       "点击「开始作答」后允许麦克风，用英语回答题目；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
   } else {
@@ -429,6 +441,7 @@ function init() {
   $("btn-back-home").addEventListener("click", showHome);
   $("btn-mode-image").addEventListener("click", () => enterMode("a"));
   $("btn-mode-read").addEventListener("click", () => enterMode("e"));
+  $("btn-mode-sample").addEventListener("click", () => enterMode("c"));
   $("btn-start").addEventListener("click", startExam);
   $("btn-stop").addEventListener("click", finishExam);
   $("btn-random").addEventListener("click", randomQuestion);
@@ -438,6 +451,7 @@ function init() {
       bank = data;
       $("btn-mode-image").disabled = false;
       $("btn-mode-read").disabled = false;
+      $("btn-mode-sample").disabled = false;
     })
     .catch((e) => {
       $("view-home").classList.add("hidden");

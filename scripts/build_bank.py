@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""将 out/ 与 out_e/ 下各题 JSON 合并为 docs/data/bank.json。
+"""将 out/、out_e/、out_c/ 下各题 JSON 合并为 docs/data/bank.json。
 
 - out/：看图说话（key=a 等），若存在 out/<id>/image.jpg 则复制到 docs/images/<id>.jpg，
   并写入 image_url 为 images/<id>.jpg（GitHub Pages 只发布 docs/）。
-- out_e/：阅读说话（key=e），无配图；合并时保留 JSON 中的 extData（内含参考翻译、答题模板等）。
+- out_e/：阅读说话（key=e），无配图；extData 含参考翻译、答题模板等。
+- out_c/：口语样本（key=c），无配图；字段与阅读说话相同。
 
-至少需存在 out/ 或 out_e/ 之一。
+至少需存在 out/、out_e/、out_c/ 之一。
 """
 
 from __future__ import annotations
@@ -21,10 +22,10 @@ def main() -> None:
     dest = root / "docs" / "data" / "bank.json"
     images_dest = root / "docs" / "images"
 
-    roots = [root / "out", root / "out_e"]
+    roots = [root / "out", root / "out_e", root / "out_c"]
     existing = [p for p in roots if p.is_dir()]
     if not existing:
-        print("缺少目录: out/ 或 out_e/ 至少其一", file=sys.stderr)
+        print("缺少目录: out/、out_e/、out_c/ 至少其一", file=sys.stderr)
         sys.exit(1)
 
     loaded: list[tuple[dict, Path]] = []

@@ -4,14 +4,16 @@
 
 题型 key 与网页 URL 一致，例如:
   a — 看图说话（有配图，md5 拼 CDN 图片）
-  e — 阅读说话（无图；范文在 answer，extData 含 titleTranslate、answerTemplate）
+  e — 阅读说话（无图；answer 范文，extData 含 titleTranslate、answerTemplate）
+  c — 口语样本（无图；字段与 e 相同）
 
 用法示例:
   python scrape_daniuduolingo.py --key a --difficulty 2 --page 3 --page-size 20 --out ./out
   python scrape_daniuduolingo.py --key e --difficulty 2 --page 1 --page-size 20 --out ./out_e --no-image
-  python scrape_daniuduolingo.py --id 33419 --key e --out ./out_e --no-image
+  python scrape_daniuduolingo.py --key c --difficulty 2 --page 1 --page-size 20 --out ./out_c --no-image
+  python scrape_daniuduolingo.py --id 79780 --out ./out_c --no-image
 
-合并题库: 在项目根目录执行 python scripts/build_bank.py（会合并 out/ 与 out_e/）。
+合并题库: 在项目根目录执行 python scripts/build_bank.py（会合并 out/、out_e/、out_c/）。
 
 说明: 看图题图片 URL 由 md5 按站点规则拼出（CDN jpg）。阅读题无 md5 时可加 --no-image。
 """

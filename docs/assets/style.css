@@ -81,15 +81,8 @@ main {
 
 .mode-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-@media (min-width: 640px) {
-  .mode-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
 }
 
 .mode-card {
@@ -143,6 +136,10 @@ main {
 
 .mode-card-e:hover:not(:disabled) {
   border-color: #d97706;
+}
+
+.mode-card-c:hover:not(:disabled) {
+  border-color: #a855f7;
 }
 
 .list-heading {
