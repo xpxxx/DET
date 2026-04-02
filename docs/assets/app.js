@@ -421,12 +421,70 @@ function finishExam() {
   $("mic-hint").textContent = "本轮已结束。可再次点击「开始作答」重试。";
 }
 
+/** 多种方式拼 bank.json URL，避免个别托管环境下 import.meta / 当前页路径不一致导致 Failed to fetch */
+function candidateBankJsonUrls() {
+  const seen = new Set();
+  /** @param {string} href */
+  const add = (href) => {
+    if (href && !seen.has(href)) seen.add(href);
+  };
+  try {
+    add(new URL("data/bank.json", DOCS_ROOT).href);
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    if (typeof document !== "undefined" && document.baseURI) {
+      add(new URL("data/bank.json", document.baseURI).href);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    if (typeof location !== "undefined" && location.href) {
+      add(new URL("data/bank.json", location.href).href);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return [...seen];
+}
+
 async function loadBank() {
-  const res = await fetch(new URL("data/bank.json", DOCS_ROOT), { cache: "no-store" });
-  if (!res.ok) throw new Error(`无法加载题库 (${res.status})`);
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("题库格式错误");
-  return data;
+  if (typeof location !== "undefined" && location.protocol === "file:") {
+    throw new Error(
+      "当前为 file:// 打开，浏览器通常会拦截题库请求。请在终端进入 docs 目录执行: python3 -m http.server 8080，然后用浏览器打开 http://localhost:8080/"
+    );
+  }
+
+  const urls = candidateBankJsonUrls();
+  if (urls.length === 0) {
+    throw new Error("无法解析 data/bank.json 地址");
+  }
+
+  let lastErr = /** @type {Error | null} */ (null);
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) {
+        lastErr = new Error(`无法加载题库 (HTTP ${res.status})`);
+        continue;
+      }
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("题库格式错误");
+      return data;
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      lastErr = err;
+    }
+  }
+
+  const hint =
+    "若已部署 GitHub Pages，请确认已提交并推送 docs/data/bank.json，且 Settings → Pages 源为含该文件的目录。";
+  if (lastErr && /Failed to fetch|NetworkError|Load failed/i.test(lastErr.message)) {
+    throw new Error(`${lastErr.message}。${hint} 本地预览请勿用双击打开 HTML，请用 http.server。`);
+  }
+  throw lastErr || new Error(`题库加载失败。${hint}`);
 }
 
 function randomQuestion() {
@@ -455,7 +513,9 @@ function init() {
     })
     .catch((e) => {
       $("view-home").classList.add("hidden");
-      $("load-err").textContent = `加载失败: ${e.message}。请先在项目根目录运行 python scripts/build_bank.py 生成 docs/data/bank.json 并推送。`;
+      const extra =
+        "生成题库：在项目根目录运行 python3 scripts/build_bank.py，将 docs/data/bank.json 与网站一并提交推送。";
+      $("load-err").textContent = `加载失败: ${e.message || e} ${extra}`;
       $("load-err").classList.remove("hidden");
     });
 }
