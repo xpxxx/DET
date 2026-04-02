@@ -1,5 +1,5 @@
 /**
- * DET 复习站：题库 bank.json、按难度筛选、90s + Web Speech API 英文转写
+ * DET 复习站：看图说话（key=a）与阅读说话（key=e）
  */
 
 const EXAM_SECONDS = 90;
@@ -7,18 +7,49 @@ const EXAM_SECONDS = 90;
 /** @type {Array<Record<string, unknown>>} */
 let bank = [];
 let filterDiff = "all"; // 'all' | '1' | '2' | '3'
-let current = null;
+/** @type {'all' | 'a' | 'e'} */
+let filterKind = "all";
 
 const $ = (id) => document.getElementById(id);
+
+function questionKey(q) {
+  const k = q.key;
+  if (k === "e" || k === "E") return "e";
+  return "a";
+}
+
+function isReadKind(q) {
+  return questionKey(q) === "e";
+}
+
+/** @param {Record<string, unknown>} q */
+function parseExtData(q) {
+  const raw = q.extData;
+  if (raw == null || typeof raw !== "string") return {};
+  try {
+    const o = JSON.parse(raw);
+    return typeof o === "object" && o !== null ? o : {};
+  } catch {
+    return {};
+  }
+}
 
 function badgeClass(d) {
   const m = { 1: "badge-d1", 2: "badge-d2", 3: "badge-d3" };
   return m[String(d)] || "badge-d2";
 }
 
+function baseByKind() {
+  if (filterKind === "all") return bank;
+  return bank.filter((q) => questionKey(q) === filterKind);
+}
+
 function filteredList() {
-  if (filterDiff === "all") return bank;
-  return bank.filter((q) => String(q.difficulty) === filterDiff);
+  let list = baseByKind();
+  if (filterDiff !== "all") {
+    list = list.filter((q) => String(q.difficulty) === filterDiff);
+  }
+  return list;
 }
 
 function formatTime(sec) {
@@ -40,18 +71,39 @@ function renderList() {
   for (const q of list) {
     const id = q.id;
     const diff = String(q.difficulty ?? "?");
-    const img = q.image_url || "";
+    const read = isReadKind(q);
     const card = document.createElement("article");
-    card.className = "card";
+    card.className = read ? "card card-text" : "card";
     card.setAttribute("role", "button");
     card.tabIndex = 0;
-    card.innerHTML = `
-      <img src="${escapeAttr(img)}" alt="" loading="lazy" />
-      <div class="meta">
-        <span class="badge ${badgeClass(diff)}">难度 ${escapeHtml(diff)}</span>
-        <strong>#${escapeHtml(String(id))}</strong>
-      </div>
-    `;
+
+    const kindLabel = read ? "阅读" : "看图";
+    const kindClass = read ? "badge-e" : "badge-a";
+
+    if (read) {
+      const raw = String(q.title || "").replace(/\r\n/g, "\n");
+      const oneLine = raw.split("\n").join(" ").replace(/\s+/g, " ").trim();
+      const preview = oneLine.slice(0, 160);
+      card.innerHTML = `
+        <div class="card-preview">${escapeHtml(preview)}${oneLine.length > 160 ? "…" : ""}</div>
+        <div class="meta">
+          <span class="badge badge-kind ${kindClass}">${kindLabel}</span>
+          <span class="badge ${badgeClass(diff)}">难度 ${escapeHtml(diff)}</span>
+          <strong>#${escapeHtml(String(id))}</strong>
+        </div>
+      `;
+    } else {
+      const img = q.image_url || "";
+      card.innerHTML = `
+        <img src="${escapeAttr(img)}" alt="" loading="lazy" />
+        <div class="meta">
+          <span class="badge badge-kind ${kindClass}">${kindLabel}</span>
+          <span class="badge ${badgeClass(diff)}">难度 ${escapeHtml(diff)}</span>
+          <strong>#${escapeHtml(String(id))}</strong>
+        </div>
+      `;
+    }
+
     card.addEventListener("click", () => openExam(q));
     card.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
@@ -76,8 +128,34 @@ function escapeAttr(s) {
     .replace(/</g, "&lt;");
 }
 
+function renderKindTabs() {
+  const tabs = $("kind-tabs");
+  tabs.innerHTML = "";
+
+  function addTab(value, label) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.dataset.kind = value;
+    if (value === filterKind) b.classList.add("active");
+    b.addEventListener("click", () => {
+      filterKind = /** @type {'all' | 'a' | 'e'} */ (value);
+      filterDiff = "all";
+      tabs.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      renderDiffTabs();
+      renderList();
+    });
+    tabs.appendChild(b);
+  }
+
+  addTab("all", "全部题型");
+  addTab("a", "看图说话");
+  addTab("e", "阅读说话");
+}
+
 function renderDiffTabs() {
-  const set = new Set(bank.map((q) => String(q.difficulty ?? "")));
+  const set = new Set(baseByKind().map((q) => String(q.difficulty ?? "")));
   const levels = [...set].filter(Boolean).sort();
   const tabs = $("diff-tabs");
   tabs.innerHTML = "";
@@ -97,7 +175,7 @@ function renderDiffTabs() {
     tabs.appendChild(b);
   }
 
-  addTab("all", "全部");
+  addTab("all", "全部难度");
   for (const lv of levels) {
     addTab(lv, `难度 ${lv}`);
   }
@@ -109,22 +187,69 @@ function showList() {
   $("view-exam").classList.add("hidden");
 }
 
+function setReadExamUI(read) {
+  const imgWrap = $("exam-image-wrap");
+  const promptWrap = $("exam-prompt-wrap");
+  const translateWrap = $("translate-wrap");
+  const templateWrap = $("template-wrap");
+  const th = $("transcript-heading");
+  const tr = $("transcript");
+
+  if (read) {
+    imgWrap.classList.add("hidden");
+    promptWrap.classList.remove("hidden");
+    translateWrap.classList.remove("hidden");
+    templateWrap.classList.remove("hidden");
+    th.textContent = "实时英文转写";
+  } else {
+    imgWrap.classList.remove("hidden");
+    promptWrap.classList.add("hidden");
+    translateWrap.classList.add("hidden");
+    templateWrap.classList.add("hidden");
+    th.textContent = "实时英文转写";
+  }
+
+  if (read) {
+    tr.textContent =
+      "点击「开始作答」后允许麦克风，用英语回答题目；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
+  } else {
+    tr.textContent =
+      "点击「开始作答」后允许麦克风，用英语描述图片；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
+  }
+  tr.classList.add("placeholder");
+}
+
 function openExam(q) {
   current = q;
+  const read = isReadKind(q);
   $("view-list").classList.add("hidden");
   $("view-exam").classList.remove("hidden");
 
-  $("exam-img").src = q.image_url || "";
+  setReadExamUI(read);
+
   $("exam-id").textContent = String(q.id);
   const d = String(q.difficulty ?? "?");
   const badge = $("exam-badge");
-  badge.textContent = `难度 ${d}`;
+  badge.textContent = `${read ? "阅读" : "看图"} · 难度 ${d}`;
   badge.className = `badge ${badgeClass(d)}`;
 
-  $("sample-text").textContent = q.answer || "（无范文）";
-  $("sample-wrap").open = false;
+  if (read) {
+    const title = String(q.title || "（无题目）");
+    $("exam-prompt").textContent = title;
+    const ext = parseExtData(q);
+    $("translate-text").textContent = String(ext.titleTranslate || "（暂无参考翻译）");
+    $("sample-text").textContent = String(q.answer || "（无范文）");
+    $("template-text").textContent = String(ext.answerTemplate || "（暂无答题模板）");
+    $("translate-wrap").open = false;
+    $("sample-wrap").open = false;
+    $("template-wrap").open = false;
+  } else {
+    $("exam-img").src = q.image_url || "";
+    $("sample-text").textContent = String(q.answer || "（无范文）");
+    $("sample-wrap").open = false;
+  }
 
-  resetTranscript();
+  resetTranscript(read);
   resetTimerDisplay();
 
   $("btn-start").classList.remove("hidden");
@@ -137,10 +262,16 @@ function openExam(q) {
   $("mic-hint").textContent = "";
 }
 
-function resetTranscript() {
+/** @param {boolean} read */
+function resetTranscript(read) {
   const el = $("transcript");
-  el.textContent =
-    "点击「开始作答」后允许麦克风，用英语描述图片；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
+  if (read) {
+    el.textContent =
+      "点击「开始作答」后允许麦克风，用英语回答题目；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
+  } else {
+    el.textContent =
+      "点击「开始作答」后允许麦克风，用英语描述图片；下方为浏览器语音识别结果（仅供参考，不录音存档）。";
+  }
   el.classList.add("placeholder");
 }
 
@@ -282,6 +413,7 @@ function init() {
   loadBank()
     .then((data) => {
       bank = data;
+      renderKindTabs();
       renderDiffTabs();
       renderList();
     })

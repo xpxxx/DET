@@ -70,6 +70,41 @@ main {
   margin-bottom: 1.25rem;
 }
 
+.kind-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (min-width: 720px) {
+  .kind-tabs {
+    width: auto;
+  }
+}
+
+.kind-tabs button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.kind-tabs button:hover {
+  border-color: var(--muted);
+}
+
+.kind-tabs button.active {
+  background: #3730a3;
+  border-color: #6366f1;
+  color: #e0e7ff;
+}
+
 .diff-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -145,7 +180,7 @@ main {
 
 .view-list .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
 }
 
@@ -183,6 +218,34 @@ main {
   font-size: 0.9rem;
 }
 
+.card-text .card-preview {
+  padding: 0.85rem 0.9rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+  min-height: 4.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.badge-kind {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.badge-a {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.badge-e {
+  background: #422006;
+  color: #fcd34d;
+}
+
 .badge {
   display: inline-block;
   padding: 0.15rem 0.45rem;
@@ -209,6 +272,29 @@ main {
 .view-exam {
   max-width: 720px;
   margin: 0 auto;
+}
+
+.block-label {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.exam-prompt-wrap {
+  margin-bottom: 1rem;
+}
+
+.exam-prompt {
+  padding: 1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .exam-image-wrap {
@@ -315,6 +401,12 @@ details.sample .sample-body {
   font-size: 0.95rem;
   line-height: 1.65;
   border-top: 1px solid var(--border);
+}
+
+details.sample .sample-body.template-body {
+  color: #a8b8cc;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
 }
 
 .empty-state {

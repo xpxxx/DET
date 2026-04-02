@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DET 看图说话 · 个人复习</title>
+    <title>DET 口语复习 · 看图 &amp; 阅读说话</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,8 +14,10 @@
   </head>
   <body>
     <header class="site-header">
-      <h1>DET 看图说话复习</h1>
-      <p>按难度浏览题目 · 模拟 90 秒考试 · 浏览器实时英文转写（不保存）· 展开参考范文</p>
+      <h1>DET 口语复习</h1>
+      <p>
+        看图说话 / 阅读说话 · 按难度筛选 · 模拟 90 秒 · 英文转写（不保存）· 展开参考翻译、范文与模板
+      </p>
     </header>
 
     <main>
@@ -23,6 +25,7 @@
 
       <section id="view-list" class="view-list">
         <div class="toolbar">
+          <div class="kind-tabs" id="kind-tabs" role="tablist" aria-label="题型"></div>
           <div class="diff-tabs" id="diff-tabs" role="tablist" aria-label="难度筛选"></div>
           <div class="actions">
             <button type="button" class="btn btn-primary" id="btn-random">随机一题</button>
@@ -43,8 +46,13 @@
 
         <p class="hint" id="stt-hint"></p>
 
-        <div class="exam-image-wrap">
+        <div class="exam-image-wrap" id="exam-image-wrap">
           <img id="exam-img" alt="题目配图" width="800" height="600" />
+        </div>
+
+        <div id="exam-prompt-wrap" class="exam-prompt-wrap hidden">
+          <h2 class="block-label">题目（英文）</h2>
+          <div id="exam-prompt" class="exam-prompt"></div>
         </div>
 
         <div class="timer-row">
@@ -57,15 +65,25 @@
           <div class="timer" id="timer">1:30</div>
         </div>
 
-        <h2 style="font-size: 1rem; margin: 0 0 0.5rem; color: var(--muted)">实时英文转写</h2>
+        <h2 id="transcript-heading" class="block-label" style="margin-top: 0">实时英文转写</h2>
         <div id="transcript" class="transcript-box placeholder">
           点击「开始作答」后允许麦克风，用英语描述图片；下方为浏览器语音识别结果（仅供参考，不录音存档）。
         </div>
         <p class="hint" id="mic-hint"></p>
 
+        <details class="sample hidden" id="translate-wrap">
+          <summary>参考翻译</summary>
+          <div class="sample-body" id="translate-text"></div>
+        </details>
+
         <details class="sample" id="sample-wrap">
           <summary>参考范文</summary>
           <div class="sample-body" id="sample-text"></div>
+        </details>
+
+        <details class="sample hidden" id="template-wrap">
+          <summary>答题模板</summary>
+          <div class="sample-body template-body" id="template-text"></div>
         </details>
       </section>
     </main>
