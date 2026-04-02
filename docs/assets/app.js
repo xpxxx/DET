@@ -4,6 +4,20 @@
 
 const EXAM_SECONDS = 90;
 
+/**
+ * docs/ 站点根（末尾带 /）。用于 fetch 与图片地址，避免 GitHub Pages 项目站无尾斜杠时
+ * 相对路径被解析到 github.io 域名根导致 404，题库加载失败、首页按钮会一直 disabled。
+ */
+const DOCS_ROOT = new URL("../", import.meta.url);
+
+/** @param {unknown} path 相对 docs 的路径或完整 http(s) URL */
+function resolveAssetUrl(path) {
+  if (path == null || path === "") return "";
+  const s = String(path);
+  if (/^https?:\/\//i.test(s)) return s;
+  return new URL(s.replace(/^\//, ""), DOCS_ROOT).href;
+}
+
 /** @type {Array<Record<string, unknown>>} */
 let bank = [];
 let filterDiff = "all"; // 'all' | '1' | '2' | '3'
@@ -93,7 +107,7 @@ function renderList() {
         </div>
       `;
     } else {
-      const img = q.image_url || "";
+      const img = resolveAssetUrl(q.image_url || "");
       card.innerHTML = `
         <img src="${escapeAttr(img)}" alt="" loading="lazy" />
         <div class="meta">
@@ -250,7 +264,7 @@ function openExam(q) {
     $("sample-wrap").open = false;
     $("template-wrap").open = false;
   } else {
-    $("exam-img").src = q.image_url || "";
+    $("exam-img").src = resolveAssetUrl(q.image_url || "");
     $("sample-text").textContent = String(q.answer || "（无范文）");
     $("sample-wrap").open = false;
   }
@@ -396,7 +410,7 @@ function finishExam() {
 }
 
 async function loadBank() {
-  const res = await fetch("data/bank.json", { cache: "no-store" });
+  const res = await fetch(new URL("data/bank.json", DOCS_ROOT), { cache: "no-store" });
   if (!res.ok) throw new Error(`无法加载题库 (${res.status})`);
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error("题库格式错误");

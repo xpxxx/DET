@@ -2,6 +2,18 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <!-- 项目站无尾斜杠时修正相对路径，避免 assets、data 请求到错误路径 -->
+    <script>
+      (function () {
+        try {
+          var path = location.pathname.replace(/\/index\.html?$/i, "");
+          if (!path.endsWith("/")) path += "/";
+          var base = document.createElement("base");
+          base.href = location.origin + path;
+          document.head.insertBefore(base, document.head.firstChild);
+        } catch (_) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DET 口语复习 · 看图 &amp; 阅读说话</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
