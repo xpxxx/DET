@@ -15,7 +15,10 @@
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f7" />
     <title>DET 口语复习</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -76,12 +79,8 @@
       </section>
 
       <section id="view-exam" class="view-exam hidden">
-        <div class="toolbar">
+        <div class="toolbar exam-toolbar">
           <button type="button" class="btn btn-ghost" id="btn-back">← 返回列表</button>
-          <div class="actions">
-            <button type="button" class="btn btn-primary" id="btn-start">开始作答</button>
-            <button type="button" class="btn btn-ghost hidden" id="btn-stop">结束</button>
-          </div>
         </div>
 
         <p class="hint" id="stt-hint"></p>
@@ -105,7 +104,13 @@
           <div class="timer" id="timer">1:30</div>
         </div>
 
-        <h2 id="transcript-heading" class="block-label" style="margin-top: 0">实时英文转写</h2>
+        <div class="transcript-head">
+          <h2 id="transcript-heading" class="block-label transcript-head-title">实时英文转写</h2>
+          <div class="transcript-actions">
+            <button type="button" class="btn btn-primary" id="btn-start">开始作答</button>
+            <button type="button" class="btn btn-ghost hidden" id="btn-stop">结束</button>
+          </div>
+        </div>
         <div id="transcript" class="transcript-box placeholder">
           点击「开始作答」后允许麦克风，用英语描述图片；下方为浏览器语音识别结果（仅供参考，不录音存档）。
         </div>
